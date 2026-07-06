@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dounou Admin — Gestion du Campus</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --brun: #5A3A22;
+            --creme: #F5EBD0;
+            --orange: #D97706;
+            --vert: #6B8E5A;
+            --noir: #202D2D;
+            --brun-clair: #8a6444;
+            --off-white: #FBF7EE;
+            --rouge: #C0392B;
+            --gris-fond: #F8F9FA;
+            --shadow-sm: 0 2px 4px rgba(90, 58, 34, 0.05);
+            --shadow-md: 0 4px 12px rgba(90, 58, 34, 0.08);
+            --shadow-lg: 0 10px 25px rgba(90, 58, 34, 0.12);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--off-white);
+            color: var(--noir);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ---------- NAVIGATION SIDEBAR (PC) ---------- */
+        .sidebar {
+            width: 280px;
+            background-color: var(--brun);
+            color: var(--creme);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 32px 24px;
+            flex-shrink: 0;
+            height: 100%;
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+        }
+
+        .brand-area {
+            text-align: left;
+            padding-bottom: 24px;
+            border-bottom: 1px solid rgba(245, 235, 208, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .brand-area h1 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 800;
+            font-size: 30px;
+            letter-spacing: -0.03em;
+            color: #white;
+            background: linear-gradient(135deg, #FFFFFF 0%, var(--creme) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-area span {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--orange);
+            font-weight: 700;
+        }
+
+        .nav-links {
+            list-style: none;
+            margin-top: 32px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-button {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 14px 18px;
+            color: rgba(245, 235, 208, 0.7);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            text-align: left;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: var(--transition);
+        }
+
+        .nav-button:hover {
+            background-color: rgba(245, 235, 208, 0.08);
+            color: #white;
+            transform: translateX(4px);
+        }
+
+        .nav-button.active {
+            background-color: var(--orange);
+            color: white;
+            box-shadow: 0 4px 14px rgba(217, 119, 6, 0.3);
+        }
+
+        .badge-nav {
+            background-color: white;
+            color: var(--orange);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-family: 'Inter', sans-serif;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .nav-button.active .badge-nav {
+            background-color: var(--brun);
+            color: white;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            padding-top: 20px;
+            border-top: 1px solid rgba(245, 235, 208, 0.15);
+            color: rgba(245, 235, 208, 0.6);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--vert);
+            border-radius: 50%;
+            position: relative;
+        }
+        .pulse-dot::after {
+            content: '';
+            position: absolute;
+            width: 100%; height: 100%;
+            left: 0; top: 0;
+            border-radius: 50%;
+            background-color: var(--vert);
+            animation: pulse 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            70% { transform: scale(2.5); opacity: 0; }
+            100% { transform: scale(0.95); opacity: 0; }
+        }
+
+        /* ---------- MAIN SURFACE ---------- */
+        .main-content {
+            flex-grow: 1;
+            padding: 40px;
+            overflow-y: auto;
+            height: 100%;
+            background-color: var(--gris-fond);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .header-dashboard h2 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 800;
+            font-size: 30px;
+            letter-spacing: -0.02em;
+            color: var(--brun);
+        }
+
+        /* ---------- SUPABASE BANNER ---------- */
+        .config-banner {
+            background: white;
+            border-left: 5px solid var(--brun);
+            padding: 16px 24px;
+            border-radius: var(--radius-md);
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .config-banner strong {
+            font-size: 14px;
+            color: var(--brun);
+        }
+
+        .config-banner input {
+            padding: 10px 16px;
+            border: 1px solid rgba(90, 58, 34, 0.15);
+            background-color: var(--gris-fond);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            flex: 1 1 220px;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .config-banner input:focus {
+            border-color: var(--orange);
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+        }
+
+        .config-banner button {
+            background-color: var(--brun);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .config-banner button:hover {
+            background-color: var(--brun-clair);
+            transform: translateY(-1px);
+        }
+
+        /* ---------- METRICS GRID ---------- */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .kpi-card {
+            background: white;
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .kpi-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #8A7F6C;
+            font-weight: 700;
+        }
+
+        .kpi-value {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 800;
+            font-size: 28px;
+            color: var(--brun);
+            margin-top: 12px;
+            line-height: 1.2;
+        }
+
+        /* ---------- TABLES CONTAINER ---------- */
+        .dashboard-view {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .dashboard-view.active-view {
+            display: block;
+        }
+
+        .table-container {
+            background: white;
+            border: none;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .table-header {
+            padding: 24px;
+            background-color: white;
+            border-bottom: 1px solid rgba(90, 58, 34, 0.06);
+        }
+
+        .table-header h3 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            color: var(--brun);
+            font-size: 18px;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: var(--off-white);
+            color: #8A7F6C;
+            font-weight: 700;
+            padding: 16px 24px;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            border-bottom: 1px solid rgba(90, 58, 34, 0.06);
+        }
+
+        td {
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(90, 58, 34, 0.04);
+            color: var(--noir);
+            font-weight: 500;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(245, 235, 208, 0.15);
+        }
+
+        /* ---------- BADGES & PREMIUM INTERACTION ---------- */
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 50px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .status-attente { background-color: #FEF3C7; color: #D97706; }
+        .status-confirme, .status-confirmée { background-color: #D1FAE5; color: #059669; }
+        .status-assigne, .status-assignée { background-color: #DBEAFE; color: #2563EB; }
+        .status-livre, .status-livré { background-color: #E2ECDD; color: var(--vert); }
+        .status-annule, .status-annulée { background-color: #FEE2E2; color: var(--rouge); }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-success { background-color: var(--vert); color: white; }
+        .btn-success:hover { background-color: #557247; }
+        .btn-danger { background-color: var(--rouge); color: white; }
+        .btn-danger:hover { background-color: #962D22; }
+        .btn-action { background-color: var(--brun); color: var(--creme); }
+        .btn-action:hover { background-color: var(--brun-clair); }
+
+        /* ---------- INPUTS & MODERNISED FORMS ---------- */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            padding: 32px;
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--brun);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 12px 16px;
+            border: 1px solid rgba(90, 58, 34, 0.15);
+            background-color: var(--gris-fond);
+            border-radius: var(--radius-sm);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            outline: none;
+            transition: var(--transition);
+            color: var(--noir);
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--orange);
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+        }
+
+        .form-full {
+            grid-column: span 2;
+        }
+
+        /* ---------- TAGS MANAGEMENT ---------- */
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .tag {
+            background-color: var(--creme);
+            color: var(--brun);
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .tag span {
+            cursor: pointer;
+            color: var(--rouge);
+            font-weight: 700;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+        .tag span:hover { transform: scale(1.2); }
+
+        /* ---------- PLATS CARDS GALLERY ---------- */
+        .plats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .item-card {
+            background: white;
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .item-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .item-card-img {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            background-color: var(--gris-fond);
+        }
+        
+        .item-card-emoji-placeholder {
+            width: 100%;
+            height: 140px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            background-color: var(--creme);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+
+        /* ---------- FORMULES SUBSCRIPTION CARDS ---------- */
+        .formules-config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-top: 16px;
+        }
+        .formule-card {
+            background: var(--off-white);
+            border: 1px solid rgba(90, 58, 34, 0.1);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        .formule-title {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            color: var(--brun);
+            margin-bottom: 12px;
+            font-size: 15px;
+            border-bottom: 2px solid var(--creme);
+            padding-bottom: 6px;
+        }
+
+        /* ---------- REUSABLE MODAL PACK ---------- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(32, 45, 45, 0.4);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--radius-md);
+            width: 100%;
+            max-width: 460px;
+            padding: 32px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            color: var(--brun);
+            margin-bottom: 20px;
+        }
+
+        /* ---------- RESPONSIVE ARCHITECTURE (MOBILE + PC) ---------- */
+        @media (max-width: 992px) {
+            body {
+                flex-direction: column;
+                overflow-y: auto;
+                height: auto;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                padding: 20px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            }
+            .brand-area {
+                text-align: center;
+                align-items: center;
+                padding-bottom: 16px;
+            }
+            .nav-links {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: 16px;
+            }
+            .nav-links li {
+                flex: 1 1 calc(50% - 4px);
+            }
+            .nav-button {
+                padding: 12px;
+                font-size: 13px;
+                justify-content: center;
+                gap: 6px;
+            }
+            .nav-button:hover {
+                transform: none;
+            }
+            .badge-nav {
+                position: relative;
+            }
+            .system-status {
+                display: none; /* épuré sur mobile */
+            }
+            .main-content {
+                padding: 20px;
+                gap: 20px;
+            }
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            .form-full {
+                grid-column: span 1;
+            }
+            .formules-config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .nav-links li {
+                flex: 1 1 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR DE NAVIGATION -->
+    <div class="sidebar">
+        <div class="brand-area">
+            <h1>Dounou</h1>
+            <span>Espace Gestion</span>
+        </div>
+        <ul class="nav-links">
+            <li>
+                <button class="nav-button active" onclick="switchView('dashboard', event)">
+                    Dashboard
+                </button>
+            </li>
+            <li>
+                <button class="nav-button" onclick="switchView('commandes', event)">
+                    Toutes les Commandes
+                </button>
+            </li>
+            <li>
+                <button class="nav-button" onclick="switchView('paiements', event)">
+                    Paiements à Valider <span class="badge-nav" id="badge-paiements">0</span>
+                </button>
+            </li>
+            <li>
+                <button class="nav-button" onclick="switchView('plats', event)">
+                    Menu & Plats du jour
+                </button>
+            </li>
+            <li>
+                <button class="nav-button" onclick="switchView('config', event)">
+                    ⚙️ Paramètres Avancés
+                </button>
+            </li>
+        </ul>
+        <div class="system-status">
+            <div class="pulse-dot"></div>
+            <span>Système Dounou Connecté</span>
+        </div>
+    </div>
+
+    <!-- ZONE DE CONTENU PRINCIPAL -->
+    <div class="main-content">
+        <div class="config-banner">
+            <strong>Connexion Supabase :</strong>
+            <input type="text" id="sb-url" placeholder="Supabase Project URL">
+            <input type="password" id="sb-key" placeholder="Anon Public Key">
+            <button onclick="initSupabase()">Activer la Base Réelle</button>
+        </div>
+
+        <div class="header-dashboard">
+            <h2 id="view-title">Dashboard Principal</h2>
+        </div>
+
+        <!-- BLOCS METRICS ET KPI -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <span class="kpi-title">Commandes Actives</span>
+                <span class="kpi-value" id="kpi-commandes">0</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-title">Paiements En Attente</span>
+                <span class="kpi-value" id="kpi-attente" style="color: var(--orange);">0</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-title">Chiffre d'Affaires Global</span>
+                <span class="kpi-value" id="kpi-ca">0 FCFA</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-title">Plats au Catalogue</span>
+                <span class="kpi-value" id="kpi-plats">0</span>
+            </div>
+        </div>
+
+        <!-- VUE : DASHBOARD -->
+        <div id="view-dashboard" class="dashboard-view active-view">
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Flux en direct des Actions Urgentes</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table id="table-live">
+                        <thead>
+                            <tr>
+                                <th>ID Commande</th>
+                                <th>Étudiant</th>
+                                <th>Formule</th>
+                                <th>Montant</th>
+                                <th>Statut Actuel</th>
+                                <th>Action Prioritaire</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="6" style="text-align: center; color: #8a7f6c; padding: 32px 24px;">Veuillez renseigner vos clés d'accès Supabase pour charger vos données.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- VUE : COMMANDES -->
+        <div id="view-commandes" class="dashboard-view">
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Registre Général des Livraisons Campus</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table id="table-commandes">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Étudiant</th>
+                                <th>Formule</th>
+                                <th>Déjeuner</th>
+                                <th>Dîner</th>
+                                <th>Site Relais</th>
+                                <th>Livreur Élu</th>
+                                <th>Statut</th>
+                                <th>Assigner</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="9" style="text-align: center; color: #8a7f6c; padding: 32px 24px;">Aucune commande disponible.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- VUE : PAIEMENTS -->
+        <div id="view-paiements" class="dashboard-view">
+            <div class="table-container">
+                <div class="table-header">
+                    <h3>Contrôle Manuel des Références de Transactions Mobile Money</h3>
+                </div>
+                <div class="table-wrapper">
+                    <table id="table-paiements">
+                        <thead>
+                            <tr>
+                                <th>ID Commande</th>
+                                <th>Étudiant</th>
+                                <th>Opérateur</th>
+                                <th>Référence SMS Soumise</th>
+                                <th>Montant Attendu</th>
+                                <th>Actions Directes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="6" style="text-align: center; color: #8a7f6c; padding: 32px 24px;">Aucune commande en attente de validation financière.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- VUE : REPAS & PLAT CATALOGUE -->
+        <div id="view-plats" class="dashboard-view">
+            <div class="form-grid" style="margin-bottom:24px;">
+                <div class="form-full"><h3 style="font-family:'Poppins'; color:var(--brun); font-weight:700;">Intégrer un Nouveau Repas au Catalogue</h3></div>
+                <div class="form-group">
+                    <label>Nom du Plat</label>
+                    <input type="text" id="plat-name" placeholder="Ex: Riz au Gras & Poulet Croustillant">
+                </div>
+                <div class="form-group">
+                    <label>Type de Service</label>
+                    <select id="plat-type">
+                        <option value="déjeuner">Déjeuner (Midi)</option>
+                        <option value="dîner">Dîner (Soir)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tarif Unitaire (FCFA)</label>
+                    <input type="number" id="plat-price" value="1000">
+                </div>
+                <div class="form-group">
+                    <label>Emoji Représentatif</label>
+                    <input type="text" id="plat-emoji" placeholder="Ex: 🍛">
+                </div>
+                <div class="form-group form-full">
+                    <label>Illustration du Plat (Photo)</label>
+                    <input type="file" id="plat-image" accept="image/*" style="background: white;">
+                </div>
+                <div class="form-full" style="text-align: right; margin-top:10px;">
+                    <button class="btn btn-action" style="padding:12px 24px;" onclick="saveNewPlat()">Ajouter au Menu du Jour</button>
+                </div>
+            </div>
+
+            <div class="table-container" style="padding:24px;">
+                <h3 style="font-family:'Poppins'; color:var(--brun); margin-bottom:16px; font-weight:700;">Plats Disponibles Aujourd'hui</h3>
+                <div class="plats-grid" id="container-plats"></div>
+            </div>
+        </div>
+
+        <!-- VUE : PARAMS CONFIGURATION -->
+        <div id="view-config" class="dashboard-view">
+            <div class="form-grid">
+                <div class="form-full">
+                    <h3 style="font-family:'Poppins'; color:var(--brun); font-weight:700;">Gestion des Fenêtres Horaires, Clôture Légale & Formules</h3>
+                    <p style="font-size:13px; color:#8a7f6c; margin-top:4px; font-weight: 500;">Configurez les règles d'accès au service étudiant, les comptes Mobile Money ainsi que les caractéristiques des abonnements.</p>
+                </div>
+                <div class="form-group">
+                    <label>Heure d'Ouverture de la Fenêtre</label>
+                    <input type="text" id="cfg-time-start" value="06:00" oninput="evalHorairesEnDirect()">
+                </div>
+                <div class="form-group">
+                    <label>Heure de Clôture Légale</label>
+                    <input type="text" id="cfg-time-end" value="11:00" oninput="evalHorairesEnDirect()">
+                </div>
+                
+                <div class="form-full" style="background:#FEF3C7; padding:16px; border-radius:var(--radius-sm); border:1px solid rgba(217, 119, 6, 0.15); margin:4px 0; box-shadow: var(--shadow-sm);">
+                    <strong style="font-size:13px; color:var(--orange); display:block; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;">Statut Opérationnel en Direct :</strong>
+                    <span id="cfg-countdown-preview" style="font-size:14px; font-weight:600; color:var(--brun);">Analyse des horaires en cours...</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Numéro MTN Mobile Money</label>
+                    <input type="text" id="cfg-mtn" value="+229 51 11 22 33">
+                </div>
+                <div class="form-group">
+                    <label>Numéro MOOV Money</label>
+                    <input type="text" id="cfg-moov" value="+229 66 44 55 66">
+                </div>
+
+                <div class="form-full form-group" style="margin-top:10px;">
+                    <label>Points Relais de Livraison sur le Campus</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="input-site" placeholder="Ajouter un lieu (ex: Hall d'Entrée Flash)" style="flex-grow:1;">
+                        <button class="btn btn-action" style="padding: 0 20px; font-size: 16px;" onclick="addSiteTag()">+</button>
+                    </div>
+                    <div class="tag-container" id="container-sites"></div>
+                </div>
+
+                <div class="form-full form-group" style="margin-top:10px;">
+                    <label>Équipe des Livreurs Actifs sur le Campus</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="input-livreur" placeholder="Nom complet du coursier" style="flex-grow:1;">
+                        <button class="btn btn-action" style="padding: 0 20px; font-size: 16px;" onclick="addLivreurTag()">+</button>
+                    </div>
+                    <div class="tag-container" id="container-livreurs"></div>
+                </div>
+
+                <div class="form-full form-group" style="margin-top:24px; border-top:1px solid rgba(90, 58, 34, 0.1); padding-top:24px;">
+                    <label style="font-size:15px; font-weight:700; transform: none; letter-spacing: normal;">Configuration des Formules de Repas (Accès Étudiant)</label>
+                    <p style="font-size:13px; color:#8a7f6c; margin-bottom:16px; font-weight: 500;">Modifiez les prix, caractéristiques et titres des formules accessibles dans l'application étudiante.</p>
+                    
+                    <div class="formules-config-grid">
+                        <div class="formule-card">
+                            <div class="formule-title">Formule Unique (1 Repas)</div>
+                            <div class="form-group" style="margin-bottom:8px;">
+                                <label style="font-size:11px;">Tarif (FCFA)</label>
+                                <input type="number" id="f-unique-price" value="1000">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:11px;">Caractéristiques / Description</label>
+                                <textarea id="f-unique-desc" rows="3" style="font-size:12px;">Déjeuner OU Dîner seul. Idéal pour les besoins ponctuels sur le campus.</textarea>
+                            </div>
+                        </div>
+
+                        <div class="formule-card">
+                            <div class="formule-title">Pack Hebdomadaire (6 Jours)</div>
+                            <div class="form-group" style="margin-bottom:8px;">
+                                <label style="font-size:11px;">Tarif (FCFA)</label>
+                                <input type="number" id="f-hebdo-price" value="5500">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:11px;">Caractéristiques / Description</label>
+                                <textarea id="f-hebdo-desc" rows="3" style="font-size:12px;">6 jours sur 7 (Midi OU Soir). Une formule économique pour votre semaine de cours.</textarea>
+                            </div>
+                        </div>
+
+                        <div class="formule-card">
+                            <div class="formule-title">Abonnement Mensuel Simple</div>
+                            <div class="form-group" style="margin-bottom:8px;">
+                                <label style="font-size:11px;">Tarif (FCFA)</label>
+                                <input type="number" id="f-mensuel-price" value="22000">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:11px;">Caractéristiques / Description</label>
+                                <textarea id="f-mensuel-desc" rows="3" style="font-size:12px;">Un mois complet de repas (Déjeuner OU Dîner). Ne vous souciez plus de cuisiner.</textarea>
+                            </div>
+                        </div>
+
+                        <div class="formule-card">
+                            <div class="formule-title">Abonnement Mensuel Double</div>
+                            <div class="form-group" style="margin-bottom:8px;">
+                                <label style="font-size:11px;">Tarif (FCFA)</label>
+                                <input type="number" id="f-giga-price" value="40000">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size:11px;">Caractéristiques / Description</label>
+                                <textarea id="f-giga-desc" rows="3" style="font-size:12px;">Double Ration quotidienne (Déjeuner ET Dîner livrés) pendant 30 jours consécutifs.</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-full" style="text-align: right; margin-top:20px;">
+                    <button class="btn btn-success" style="padding:14px 32px; font-size:14px; border-radius: var(--radius-sm);" onclick="saveGlobalConfiguration()">
+                        Enregistrer toute la configuration
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ASSIGNATION COURSIER -->
+    <div class="modal" id="modal-assign">
+        <div class="modal-content">
+            <div class="modal-header">Assigner un coursier Dounou</div>
+            <input type="hidden" id="assign-order-id">
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label>Sélectionner le livreur responsable :</label>
+                <select id="select-livreur"></select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button class="btn" style="background:#E5E7EB; color:#1F2937;" onclick="closeModal()">Annuler</button>
+                <button class="btn btn-success" onclick="confirmLivreurAssignment()">Confirmer l'attribution</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CODE SCRIPT FONCTIONNEL CONSERVÉ -->
+    <script>
+        let _supabase = null;
+        
+        let globalSites = ["Resto U Principal", "Amphi Idriss Deby", "Bloc Pédagogique Flash", "FSS Campus"];
+        let globalLivreurs = ["Gildas Campus Rider", "Chabi Vélo-Express", "Mariette Bio-Livreuse"];
+        
+        const defaultPlats = [
+            { emoji: "🍛", name: "Riz au gras & Poulet doré", type: "déjeuner", price: 1000, image_url: "" },
+            { emoji: "🇧🇯", name: "Atassi complet (Oeuf, Poisson, Fritures)", type: "déjeuner", price: 1000, image_url: "" },
+            { emoji: "🍲", name: "Sauce graine au Blanc de dinde + Akassa", type: "dîner", price: 1000, image_url: "" },
+            { emoji: "🍠", name: "Ragoût d'igname parfumé au fumet de poisson", type: "dîner", price: 1000, image_url: "" }
+        ];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderSites();
+            renderLivreurs();
+            renderPlatsDefault();
+            
+            evalHorairesEnDirect();
+            setInterval(evalHorairesEnDirect, 1000);
+        });
+
+        function switchView(viewId, event) {
+            document.querySelectorAll('.dashboard-view').forEach(v => v.classList.remove('active-view'));
+            document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(`view-${viewId}`).classList.add('active-view');
+            if(event) event.currentTarget.classList.add('active');
+
+            const titles = {
+                dashboard: "Dashboard Principal & Urgences",
+                commandes: "Registre Général des Livraisons Campus",
+                paiements: "Contrôle Manuel des Références Financières",
+                plats: "Menu & Plats du jour configurables",
+                config: "⚙️ Paramètres Avancés & Fenêtres Horaires"
+            };
+            document.getElementById('view-title').innerText = titles[viewId] || "Administration";
+        }
+
+        function renderSites() {
+            const container = document.getElementById('container-sites');
+            container.innerHTML = '';
+            globalSites.forEach((s, idx) => {
+                container.innerHTML += `<div class="tag">${s} <span onclick="removeSite(${idx})">&times;</span></div>`;
+            });
+            updateLivreursSelect();
+        }
+        function addSiteTag() {
+            const val = document.getElementById('input-site').value.trim();
+            if(val) { globalSites.push(val); document.getElementById('input-site').value=''; renderSites(); }
+        }
+        function removeSite(idx) { globalSites.splice(idx,1); renderSites(); }
+
+        function renderLivreurs() {
+            const container = document.getElementById('container-livreurs');
+            container.innerHTML = '';
+            globalLivreurs.forEach((l, idx) => {
+                container.innerHTML += `<div class="tag">${l} <span onclick="removeLivreur(${idx})">&times;</span></div>`;
+            });
+            updateLivreursSelect();
+        }
+        function addLivreurTag() {
+            const val = document.getElementById('input-livreur').value.trim();
+            if(val) { globalLivreurs.push(val); document.getElementById('input-livreur').value=''; renderLivreurs(); }
+        }
+        function removeLivreur(idx) { globalLivreurs.splice(idx,1); renderLivreurs(); }
+
+        function updateLivreursSelect() {
+            const select = document.getElementById('select-livreur');
+            if(!select) return;
+            select.innerHTML = '';
+            globalLivreurs.forEach(l => {
+                select.innerHTML += `<option value="${l}">${l}</option>`;
+            });
+        }
+
+        function renderPlatsDefault() {
+            const grid = document.getElementById('container-plats');
+            grid.innerHTML = '';
+            defaultPlats.forEach(p => {
+                grid.innerHTML += `
+                    <div class="item-card">
+                        ${p.image_url ? `<img src="${p.image_url}" class="item-card-img" />` : `<div class="item-card-emoji-placeholder">${p.emoji}</div>`}
+                        <strong style="display:block; font-size:15px; color:var(--brun); font-family:'Poppins'; font-weight:700;">${p.name}</strong>
+                        <small style="color:var(--brun-clair); font-weight:600; text-transform:uppercase; font-size:11px; margin-top:4px; display:block;">${p.type}</small>
+                        <div style="color:var(--orange); font-weight:800; font-size:16px; margin-top:auto; padding-top:12px;">${p.price} FCFA</div>
+                        <div style="margin-top:10px; font-size:12px; color:var(--vert); font-weight:700; display:flex; align-items:center; gap:4px;">● Activé au menu</div>
+                    </div>
+                `;
+            });
+            document.getElementById('kpi-plats').innerText = defaultPlats.length;
+        }
+
+        function convertImageToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        async function saveNewPlat() {
+            const name = document.getElementById('plat-name').value.trim();
+            const type = document.getElementById('plat-type').value;
+            const price = parseInt(document.getElementById('plat-price').value) || 1000;
+            const emoji = document.getElementById('plat-emoji').value.trim() || "🍛";
+            const imageFile = document.getElementById('plat-image').files[0];
+
+            if (!name) return alert("Saisissez le nom du plat.");
+
+            let base64Image = "";
+            if(imageFile) {
+                try {
+                    base64Image = await convertImageToBase64(imageFile);
+                } catch (e) {
+                    console.error("Erreur de lecture de l'image", e);
+                }
+            }
+
+            if(_supabase) {
+                const { error } = await _supabase.from('midounou_meals').insert([{ 
+                    name, 
+                    type, 
+                    price, 
+                    emoji, 
+                    is_active: true,
+                    image_url: base64Image
+                }]);
+                if(error) alert("Erreur BDD: " + error.message);
+                else {
+                    alert("Plat intégré avec succès sur la base de données !");
+                    fetchDataFromDatabase();
+                    document.getElementById('plat-name').value = '';
+                    document.getElementById('plat-image').value = '';
+                }
+            } else {
+                defaultPlats.push({ emoji, name, type, price, image_url: base64Image });
+                renderPlatsDefault();
+                alert("Ajouté localement au catalogue de démonstration !");
+                document.getElementById('plat-name').value = '';
+                document.getElementById('plat-image').value = '';
+            }
+        }
+
+        function evalHorairesEnDirect() {
+            const startInput = document.getElementById('cfg-time-start').value.trim();
+            const endInput = document.getElementById('cfg-time-end').value.trim();
+            const previewSpan = document.getElementById('cfg-countdown-preview');
+            
+            if(!startInput || !endInput) return;
+            
+            const now = new Date();
+            const startParts = startInput.split(':');
+            const endParts = endInput.split(':');
+            
+            const targetStart = new Date();
+            targetStart.setHours(parseInt(startParts[0]), parseInt(startParts[1]), 0, 0);
+            
+            const targetEnd = new Date();
+            targetEnd.setHours(parseInt(endParts[0]), parseInt(endParts[1]), 0, 0);
+            
+            if (now < targetStart) {
+                let diff = targetStart - now;
+                let hours = Math.floor(diff / 3600000);
+                let mins = Math.floor((diff % 3600000) / 60000);
+                let secs = Math.floor((diff % 60000) / 1000);
+                previewSpan.innerHTML = `🔴 SERVICE FERMÉ — Ouvre dans ${hours}h ${mins}m ${secs}s (à ${startInput})`;
+                previewSpan.style.color = "var(--rouge)";
+                window.isDounouClosed = true;
+            } 
+            else if (now >= targetStart && now <= targetEnd) {
+                let diff = targetEnd - now;
+                let hours = Math.floor(diff / 3600000);
+                let mins = Math.floor((diff % 3600000) / 60000);
+                let secs = Math.floor((diff % 60000) / 1000);
+                previewSpan.innerHTML = `🟢 FENÊTRE OUVERTE — Clôture légale dans ${hours}h ${mins}m ${secs}s (à ${endInput})`;
+                previewSpan.style.color = "var(--vert)";
+                window.isDounouClosed = false;
+            } 
+            else {
+                previewSpan.innerHTML = `⚠️ CLÔTURE LÉGALE ATTEINTE — Expirée pour aujourd'hui.`;
+                previewSpan.style.color = "var(--rouge)";
+                window.isDounouClosed = true;
+            }
+        }
+
+        async function saveGlobalConfiguration() {
+            const start = document.getElementById('cfg-time-start').value;
+            const end = document.getElementById('cfg-time-end').value;
+            const mtn = document.getElementById('cfg-mtn').value;
+            const moov = document.getElementById('cfg-moov').value;
+
+            const formulasMetadata = {
+                unique: { price: parseInt(document.getElementById('f-unique-price').value), desc: document.getElementById('f-unique-desc').value },
+                hebdo: { price: parseInt(document.getElementById('f-hebdo-price').value), desc: document.getElementById('f-hebdo-desc').value },
+                mensuel: { price: parseInt(document.getElementById('f-mensuel-price').value), desc: document.getElementById('f-mensuel-desc').value },
+                giga: { price: parseInt(document.getElementById('f-giga-price').value), desc: document.getElementById('f-giga-desc').value }
+            };
+
+            const configObject = {
+                order_start_time: start,
+                order_end_time: end,
+                service_mtn: mtn,
+                service_moov: moov,
+                delivery_sites: globalSites.join(','),
+                delivery_teams: globalLivreurs.join(','),
+                formulas_data: JSON.stringify(formulasMetadata),
+                updated_at: new Date().toISOString()
+            };
+
+            if(_supabase) {
+                const { error } = await _supabase.from('midounou_config').upsert([{ id: 'MAIN_CONFIG', ...configObject }]);
+                if(error) {
+                    alert("Erreur lors de l'enregistrement BDD : " + error.message);
+                } else {
+                    alert("Configuration globale enregistrée sur Supabase !");
+                    fetchDataFromDatabase();
+                }
+            } else {
+                alert("Sauvegarde locale effectuée !");
+            }
+        }
+
+        function initSupabase() {
+            const url = document.getElementById('sb-url').value.trim();
+            const key = document.getElementById('sb-key').value.trim();
+
+            if(!url || !key) return alert("Veuillez entrer l'URL et la clé Anon.");
+
+            try {
+                _supabase = supabase.createClient(url, key);
+                alert("Connexion établie avec Supabase ! Chargement...");
+                
+                loadSavedConfig();
+                fetchDataFromDatabase();
+                
+                _supabase.channel('custom-all-channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'midounou_orders' }, () => {
+                    fetchDataFromDatabase();
+                }).subscribe();
+
+            } catch(e) {
+                alert("Erreur d'initialisation : " + e.message);
+            }
+        }
+
+        async function loadSavedConfig() {
+            if(!_supabase) return;
+            const { data, error } = await _supabase.from('midounou_config').select('*').eq('id', 'MAIN_CONFIG').single();
+            if(!error && data) {
+                if(data.order_start_time) document.getElementById('cfg-time-start').value = data.order_start_time;
+                if(data.order_end_time) document.getElementById('cfg-time-end').value = data.order_end_time;
+                if(data.service_mtn) document.getElementById('cfg-mtn').value = data.service_mtn;
+                if(data.service_moov) document.getElementById('cfg-moov').value = data.service_moov;
+                
+                if(data.delivery_sites) {
+                    globalSites = data.delivery_sites.split(',');
+                    renderSites();
+                }
+                if(data.delivery_teams) {
+                    globalLivreurs = data.delivery_teams.split(',');
+                    renderLivreurs();
+                }
+                if(data.formulas_data) {
+                    try {
+                        const parsed = JSON.parse(data.formulas_data);
+                        if(parsed.unique) {
+                            document.getElementById('f-unique-price').value = parsed.unique.price;
+                            document.getElementById('f-unique-desc').value = parsed.unique.desc;
+                        }
+                        if(parsed.hebdo) {
+                            document.getElementById('f-hebdo-price').value = parsed.hebdo.price;
+                            document.getElementById('f-hebdo-desc').value = parsed.hebdo.desc;
+                        }
+                        if(parsed.mensuel) {
+                            document.getElementById('f-mensuel-price').value = parsed.mensuel.price;
+                            document.getElementById('f-mensuel-desc').value = parsed.mensuel.desc;
+                        }
+                        if(parsed.giga) {
+                            document.getElementById('f-giga-price').value = parsed.giga.price;
+                            document.getElementById('f-giga-desc').value = parsed.giga.desc;
+                        }
+                    } catch(jsonErr) { console.error("Erreur formules parsing: ", jsonErr); }
+                }
+                evalHorairesEnDirect();
+            }
+        }
+
+        async function fetchDataFromDatabase() {
+            if(!_supabase) return;
+
+            const { data: meals } = await _supabase.from('midounou_meals').select('*').order('created_at', { ascending: false });
+            if(meals && meals.length > 0) {
+                document.getElementById('kpi-plats').innerText = meals.length;
+                const grid = document.getElementById('container-plats');
+                grid.innerHTML = '';
+                meals.forEach(p => {
+                    grid.innerHTML += `
+                        <div class="item-card">
+                            ${p.image_url ? `<img src="${p.image_url}" class="item-card-img" />` : `<div class="item-card-emoji-placeholder">${p.emoji}</div>`}
+                            <strong style="display:block; font-size:15px; color:var(--brun); font-family:'Poppins'; font-weight:700;">${p.name}</strong>
+                            <small style="color:var(--brun-clair); font-weight:600; text-transform:uppercase; font-size:11px; margin-top:4px; display:block;">${p.type}</small>
+                            <div style="color:var(--orange); font-weight:800; font-size:16px; margin-top:auto; padding-top:12px;">${p.price} FCFA</div>
+                            <div style="margin-top:10px; font-size:12px; color:${p.is_active ? 'var(--vert)' : 'var(--rouge)'}; font-weight:700; display:flex; align-items:center; gap:4px;">
+                                ${p.is_active ? '● Activé au menu' : '● Désactivé'}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            const { data: orders, error } = await _supabase.from('midounou_orders').select('*').order('created_at', { ascending: false });
+            if(error) return console.error(error);
+
+            document.getElementById('kpi-commandes').innerText = orders.filter(o => o.status !== 'Annulée' && o.status !== 'Livré').length;
+            const enAttenteFinanciere = orders.filter(o => o.status === 'En attente de validation admin' || o.status === 'En attente de validation').length;
+            document.getElementById('kpi-attente').innerText = enAttenteFinanciere;
+            document.getElementById('badge-paiements').innerText = enAttenteFinanciere;
+
+            let totalCA = 0;
+            orders.forEach(o => { if(o.status !== 'Annulée') totalCA += (o.total_amount || 0); });
+            document.getElementById('kpi-ca').innerText = totalCA + " FCFA";
+
+            const tableLive = document.getElementById('table-live').getElementsByTagName('tbody')[0];
+            tableLive.innerHTML = '';
+            const urgentOrders = orders.filter(o => o.status === 'En attente de validation admin' || o.status === 'Confirmée');
+            
+            if(urgentOrders.length === 0) {
+                tableLive.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #8a7f6c; padding:24px;">Aucune action urgente requise en ce moment. Tout est à jour ! 🎉</td></tr>`;
+            } else {
+                urgentOrders.forEach(o => {
+                    let actionBtn = '';
+                    if(o.status === 'En attente de validation admin') {
+                        actionBtn = `
+                            <button class="btn btn-success" onclick="validerPaiement('${o.id}', true)">Valider</button>
+                            <button class="btn btn-danger" onclick="validerPaiement('${o.id}', false)">Rejeter</button>
+                        `;
+                    } else if(o.status === 'Confirmée') {
+                        actionBtn = `<button class="btn btn-action" onclick="openAssignModal('${o.id}')">🚴 Assigner</button>`;
+                    }
+
+                    tableLive.innerHTML += `
+                        <tr>
+                            <td><strong>${o.id}</strong></td>
+                            <td>${o.student_name || 'Étudiant'}</td>
+                            <td><span class="status-badge status-attente">${o.formula}</span></td>
+                            <td><strong>${o.total_amount} F</strong></td>
+                            <td><span class="status-badge ${getStatusClass(o.status)}">${o.status}</span></td>
+                            <td><div style="display:flex; gap:6px;">${actionBtn}</div></td>
+                        </tr>
+                    `;
+                });
+            }
+
+            const tableGeneral = document.getElementById('table-commandes').getElementsByTagName('tbody')[0];
+            tableGeneral.innerHTML = '';
+            if(orders.length === 0) {
+                tableGeneral.innerHTML = `<tr><td colspan="9" style="text-align: center; color:#8a7f6c; padding:24px;">Aucune commande enregistrée.</td></tr>`;
+            } else {
+                orders.forEach(o => {
+                    tableGeneral.innerHTML += `
+                        <tr>
+                            <td><strong>${o.id}</strong></td>
+                            <td>${o.student_name}</td>
+                            <td><small>${o.formula}</small></td>
+                            <td>${o.repas_dejeuner || '—'}</td>
+                            <td>${o.repas_diner || '—'}</td>
+                            <td><small>📍 ${o.delivery_site || 'Campus'}</small></td>
+                            <td>${o.livreur ? '🚴 ' + o.livreur : '<em style="color:#999;">Non assigné</em>'}</td>
+                            <td><span class="status-badge ${getStatusClass(o.status)}">${o.status}</span></td>
+                            <td>
+                                <button class="btn btn-action" style="padding:6px 12px; font-size:11px;" onclick="openAssignModal('${o.id}')">Modifier</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            const tableFinances = document.getElementById('table-paiements').getElementsByTagName('tbody')[0];
+            tableFinances.innerHTML = '';
+            const pendingPayments = orders.filter(o => o.status === 'En attente de validation admin');
+            if(pendingPayments.length === 0) {
+                tableFinances.innerHTML = `<tr><td colspan="6" style="text-align: center; color:#8a7f6c; padding:24px;">Aucune transaction en attente.</td></tr>`;
+            } else {
+                pendingPayments.forEach(o => {
+                    tableFinances.innerHTML += `
+                        <tr>
+                            <td><strong>${o.id}</strong></td>
+                            <td>${o.student_name}</td>
+                            <td><span style="font-weight:700; color:var(--orange);">${o.operator || 'MoMo'}</span></td>
+                            <td><code style="background:var(--creme); padding:4px 8px; border-radius:4px; font-weight:700; color: var(--brun); font-size:12px;">${o.transaction_ref || 'SANS_REF'}</code></td>
+                            <td><strong style="color:var(--brun);">${o.total_amount} FCFA</strong></td>
+                            <td>
+                                <button class="btn btn-success" onclick="validerPaiement('${o.id}', true)">✓ Approuver</button>
+                                <button class="btn btn-danger" onclick="validerPaiement('${o.id}', false)">❌ Refuser</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        function getStatusClass(status) {
+            if(!status) return 'status-attente';
+            let s = status.toLowerCase();
+            if(s.includes('attente')) return 'status-attente';
+            if(s.includes('confirm')) return 'status-confirme';
+            if(s.includes('assign')) return 'status-assigne';
+            if(s.includes('livr')) return 'status-livre';
+            if(s.includes('annul')) return 'status-annule';
+            return 'status-attente';
+        }
+
+        async function validerPaiement(orderId, isApproved) {
+            if(!_supabase) return;
+            const targetStatus = isApproved ? 'Confirmée' : 'Annulée';
+            
+            const { error } = await _supabase.from('midounou_orders')
+                .update({ status: targetStatus })
+                .eq('id', orderId);
+
+            if (error) alert("Erreur lors de la mise à jour : " + error.message);
+            else fetchDataFromDatabase();
+        }
+
+        function openAssignModal(orderId) {
+            document.getElementById('assign-order-id').value = orderId;
+            document.getElementById('modal-assign').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modal-assign').style.display = 'none';
+        }
+
+        async function confirmLivreurAssignment() {
+            const orderId = document.getElementById('assign-order-id').value;
+            const livreurName = document.getElementById('select-livreur').value;
+
+            if (!_supabase || !orderId) return;
+
+            const { error } = await _supabase.from('midounou_orders')
+                .update({ 
+                    livreur: livreurName,
+                    status: 'Assignée'
+                })
+                .eq('id', orderId);
+
+            if (error) {
+                alert("Erreur d'assignation : " + error.message);
+            } else {
+                closeModal();
+                fetchDataFromDatabase();
+            }
+        }
+    </script>
+</body>
+</html>
